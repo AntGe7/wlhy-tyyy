@@ -101,7 +101,7 @@
 <style lang="scss" scoped>
 	@import '@/uni_modules/uv-ui-tools/libs/css/components.scss';
 	@import '@/uni_modules/uv-ui-tools/libs/css/color.scss';
-	$uv-cell-padding: 10px 15px !default;
+	$uv-cell-padding: 15px 15px !default;
 	$uv-cell-font-size: 15px !default;
 	$uv-cell-line-height: 24px !default;
 	$uv-cell-color: $uv-main-color !default;
