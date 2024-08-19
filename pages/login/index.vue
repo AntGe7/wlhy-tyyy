@@ -1,5 +1,6 @@
 <template>
 	<view style="height:100vh;overflow: hidden; background: #fff">
+		<uv-loading-page :loading="isLoading" loadingText="正在加载" image="../../static/logo.png"></uv-loading-page>
 		<view class="img-a">
 			<view class="txt">
 				您好，
@@ -48,10 +49,10 @@
 									<template v-slot:suffix>
 										<view style="height: 30rpx" @tap="getCode" :disabled="countdownActive">
 											{{
-                        countdown > 0
-                          ? `${countdown}秒后重新获取`
-                          : "获取验证码"
-                      }}
+												countdown > 0
+													? `${countdown}秒后重新获取`
+													: "获取验证码"
+											}}
 										</view>
 									</template>
 								</uv-input>
@@ -79,131 +80,132 @@
 </template>
 
 <script setup>
-	import {
-		ref
-	} from "vue";
-	import {
-		login1,
-		login2,
-		sendCode
-	} from "@/api/login/login.js";
-	import {
-		useUserStore
-	} from '@/stores/modules/userStore.js'
-	import Base64 from '@/utils/base64/base64.js'
-	// tabs显示
-	const list = ref([{
-			name: "密码登录",
-			id: 1
-		},
-		{
-			name: "手机号登录",
-			id: 2
-		},
-	]);
+import {
+	ref
+} from "vue";
+import {
+	login1,
+	login2,
+	sendCode
+} from "@/api/login/login.js";
+import {
+	useUserStore
+} from '@/stores/modules/userStore.js'
+import Base64 from '@/utils/base64/base64.js'
+// tabs显示
+const list = ref([{
+	name: "密码登录",
+	id: 1
+},
+{
+	name: "手机号登录",
+	id: 2
+},
+]);
 
-	// form表单 用户名登录
-	const username = ref('');
-	const password = ref('');
-	const mobile = ref('');
-	const captcha = ref('');
+// form表单 用户名登录
+const username = ref('');
+const password = ref('');
+const mobile = ref('');
+const captcha = ref('');
+// 处理密码显示与隐藏
+const eyeIcon = ref("eye-off");
+const isPass = ref("password");
+const isEye = () => {
+	if (eyeIcon.value == "eye-off") {
+		eyeIcon.value = "eye";
+		isPass.value = "text";
+	} else {
+		eyeIcon.value = "eye-off";
+		isPass.value = "password";
+	}
+};
 
-	// 处理密码显示与隐藏
-	const eyeIcon = ref("eye-off");
-	const isPass = ref("password");
-	const isEye = () => {
-		if (eyeIcon.value == "eye-off") {
-			eyeIcon.value = "eye";
-			isPass.value = "text";
-		} else {
-			eyeIcon.value = "eye-off";
-			isPass.value = "password";
+// 控制显示哪个表单
+const isPassword = ref(1);
+
+// 切换表单
+const clickTab = (index) => {
+	isPassword.value = index.id;
+	if (isPassword.value === 1) {
+		username.value = "";
+		password.value = "";
+	} else if (isPassword.value === 2) {
+		mobile.value = "";
+		captcha.value = "";
+	}
+};
+
+// 定义验证码倒计时和状态
+const countdown = ref(0);
+const countdownActive = ref(false);
+const startCountdown = () => {
+	if (countdownActive.value) return;
+	countdown.value = 60;
+	countdownActive.value = true;
+	const intervalId = setInterval(() => {
+		countdown.value--;
+		if (countdown.value === 0) {
+			clearInterval(intervalId);
+			countdownActive.value = false;
 		}
-	};
+	}, 1000);
+};
 
-	// 控制显示哪个表单
-	const isPassword = ref(1);
+// 手机号校验逻辑
+const validateMobile = (mobile) => {
+	const mobileRegex = /^1\d{10}$/;
+	if (mobile === "") {
+		uni.showToast({
+			title: "请输入手机号",
+			icon: "none"
+		});
+		return false;
+	}
+	if (!mobileRegex.test(mobile)) {
+		uni.showToast({
+			title: "请输入正确的手机号",
+			icon: "none"
+		});
+		return false;
+	}
+	return true;
+};
+const isLoading = ref(false)
+// 定义点击获取验证码的方法
+const getCode = async () => {
+	if (countdownActive.value) {
+		// 如果倒计时已激活，阻止进一步操作
+		uni.showToast({
+			title: "请稍后再试",
+			icon: "none"
+		});
+		return;
+	}
 
-	// 切换表单
-	const clickTab = (index) => {
-		isPassword.value = index.id;
-		if (isPassword.value === 1) {
-			username.value = "";
-			password.value = "";
-		} else if (isPassword.value === 2) {
-			mobile.value = "";
-			captcha.value = "";
+	try {
+		if (validateMobile(mobile.value)) {
+			startCountdown(); // 开始倒计时
+			let params = {
+				phone: mobile.value,
+				smsmode: "0",
+				messageSource: "2"
+			};
+			await sendCode(params);
 		}
-	};
+	} catch (error) {
+		// 显示错误信息
+		uni.showToast({
+			title: error.message,
+			icon: "none"
+		});
+	}
+};
 
-	// 定义验证码倒计时和状态
-	const countdown = ref(0);
-	const countdownActive = ref(false);
-	const startCountdown = () => {
-		if (countdownActive.value) return;
-		countdown.value = 60;
-		countdownActive.value = true;
-		const intervalId = setInterval(() => {
-			countdown.value--;
-			if (countdown.value === 0) {
-				clearInterval(intervalId);
-				countdownActive.value = false;
-			}
-		}, 1000);
-	};
-
-	// 手机号校验逻辑
-	const validateMobile = (mobile) => {
-		const mobileRegex = /^1\d{10}$/;
-		if (mobile === "") {
-			uni.showToast({
-				title: "请输入手机号",
-				icon: "none"
-			});
-			return false;
-		}
-		if (!mobileRegex.test(mobile)) {
-			uni.showToast({
-				title: "请输入正确的手机号",
-				icon: "none"
-			});
-			return false;
-		}
-		return true;
-	};
-
-	// 定义点击获取验证码的方法
-	const getCode = async () => {
-	    if (countdownActive.value) {
-	        // 如果倒计时已激活，阻止进一步操作
-	        uni.showToast({
-	            title: "请稍后再试",
-	            icon: "none"
-	        });
-	        return;
-	    }
-	
-	    try {
-	        if (validateMobile(mobile.value)) {
-	            startCountdown(); // 开始倒计时
-	            let params = {
-	                phone: mobile.value,
-	                smsmode: "0",
-	                messageSource: "2"
-	            };
-	            await sendCode(params);
-	        }
-	    } catch (error) {
-	        // 显示错误信息
-	        uni.showToast({
-	            title: error.message,
-	            icon: "none"
-	        });
-	    }
-	};
-
-	// 点击登录按钮 主要是验证必填和登录方式
-	const onLogin = () => {
+// 点击登录按钮 主要是验证必填和登录方式
+const onLogin = () => {
+	isLoading.value = true;
+	try {
 		if (isPassword.value === 1) {
 			if (username.value === "") {
 				return uni.showToast({
@@ -236,207 +238,217 @@
 			}
 			getLogin2(mobile.value, captcha.value)
 		}
-	};
-	const token = ref('')
-	// 密码方式登录
-	const getLogin1 = async (username, encodedPassword) => {
-		let params = {
-			username: username,
-			password: encodedPassword,
-			isPassword: 1
-		};
-		const userStore = useUserStore()
-		const res = await login1(params)
-		if (res.data.code) {
-			token.value = res.data.result.token
-			uni.showToast({
-				title: res.data.message,
-				icon: "none"
-			});
-			userStore.setToken(res.data.result.token) // 保存 token
-			setTimeout(() => {
-				uni.redirectTo({
-					url: '/pages/index/index' // 确保路径是正确的
-				});
-			}, 1500);
-		} else {
-			//显示错误信息
-			uni.showToast({
-				title: res.data.message,
-				icon: "none"
-			});
-		}
+	} catch (error) {
+		uni.showToast({
+			title: "请稍后重试",
+			icon: "none"
+		});
 	}
-	// 验证码方式登录
-	const getLogin2 = async (mobile, captcha) => {
-		let params = {
-			mobile: mobile,
-			captcha: captcha
-		};
-		const userStore = useUserStore()
-		const res = await login2(params)
-		if (res.data.code) {
-			token.value = res.data.result.token
-			userStore.setToken(res.data.result.token) // 保存 token
-			uni.showToast({
-				title: res.data.message,
-				icon: "none"
-			});
-			setTimeout(() => {
-				uni.redirectTo({
-					url: '/pages/index/index' // 确保路径是正确的
-				});
-			}, 1500);
-		} else {
-			//显示错误信息
-			uni.showToast({
-				title: res.data.message,
-				icon: "none"
-			});
-		}
+	finally {
+		isLoading.value = false; 
 	}
-	// 注册页面跳转
-	const reg = () => {
+};
+const token = ref('')
+// 密码方式登录
+const getLogin1 = async (username, encodedPassword) => {
+	let params = {
+		username: username,
+		password: encodedPassword,
+		isPassword: 1
+	};
+	const userStore = useUserStore()
+	const res = await login1(params)
+	console.log(res, 'res123123');
+	if (res.code) {
+		token.value = res.result.token
 		uni.showToast({
-			title: "注册跳转,暂未开发联系开发人员",
+			title: res.message,
 			icon: "none"
 		});
+		userStore.setToken(res.result.token) // 保存 token
+		setTimeout(() => {
+			uni.redirectTo({
+				url: '/pages/index/index' // 确保路径是正确的
+			});
+		}, 1500);
+	} else {
+		//显示错误信息
+		uni.showToast({
+			title: res.message,
+			icon: "none"
+		});
+	}
+}
+// 验证码方式登录
+const getLogin2 = async (mobile, captcha) => {
+	let params = {
+		mobile: mobile,
+		captcha: captcha
 	};
+	const userStore = useUserStore()
+	const res = await login2(params)
+	if (res.data.code) {
+		token.value = res.data.result.token
+		userStore.setToken(res.data.result.token) // 保存 token
+		uni.showToast({
+			title: res.data.message,
+			icon: "none"
+		});
+		setTimeout(() => {
+			uni.redirectTo({
+				url: '/pages/index/index' // 确保路径是正确的
+			});
+		}, 1500);
+	} else {
+		//显示错误信息
+		uni.showToast({
+			title: res.data.message,
+			icon: "none"
+		});
+	}
+}
+// 注册页面跳转
+const reg = () => {
+	uni.showToast({
+		title: "注册跳转,暂未开发联系开发人员",
+		icon: "none"
+	});
+};
 
-	// 第三方登录 - 微信
-	const wxLogin = () => {
-		uni.showToast({
-			title: "微信登录,暂未开发联系开发人员",
-			icon: "none"
-		});
-	};
+// 第三方登录 - 微信
+const wxLogin = () => {
+	uni.showToast({
+		title: "微信登录,暂未开发联系开发人员",
+		icon: "none"
+	});
+};
 
-	// 第三方登录 - 支付宝
-	const zfbLogin = () => {
-		uni.showToast({
-			title: "QQ登录,暂未开发联系开发人员",
-			icon: "none"
-		});
-	};
+// 第三方登录 - 支付宝
+const zfbLogin = () => {
+	uni.showToast({
+		title: "QQ登录,暂未开发联系开发人员",
+		icon: "none"
+	});
+};
 </script>
 
 <style scoped>
-	.txt {
-		font-size: 32rpx;
-		font-weight: bold;
-		color: #333333;
-		padding: 120rpx 0 0 20rpx;
-	}
+.txt {
+	font-size: 32rpx;
+	font-weight: bold;
+	color: #333333;
+	padding: 120rpx 0 0 20rpx;
+}
 
-	.img-a {
-		width: 100%;
-		height: 360rpx;
-		background-image: url(https://zhoukaiwen.com/img/loginImg/head.png);
-		background-size: 100%;
-	}
+.img-a {
+	width: 100%;
+	height: 360rpx;
+	background-image: url(https://zhoukaiwen.com/img/loginImg/head.png);
+	background-size: 100%;
+}
 
-	.reg {
-		font-size: 28rpx;
-		height: 90rpx;
-		line-height: 90rpx;
-		border-radius: 50rpx;
-		font-weight: bold;
-		background: #f5f6fa;
-		color: #000000;
-		text-align: center;
-		margin-top: 30rpx;
-	}
+.reg {
+	font-size: 28rpx;
+	height: 90rpx;
+	line-height: 90rpx;
+	border-radius: 50rpx;
+	font-weight: bold;
+	background: #f5f6fa;
+	color: #000000;
+	text-align: center;
+	margin-top: 30rpx;
+}
 
-	.login-view {
-		width: 100%;
-		position: relative;
-		margin-top: -120rpx;
-		background-color: #ffffff;
-		border-radius: 8% 8% 0% 0;
-	}
+.login-view {
+	width: 100%;
+	position: relative;
+	margin-top: -120rpx;
+	background-color: #ffffff;
+	border-radius: 8% 8% 0% 0;
+}
 
-	.login-form {
-		margin-top: 40rpx;
-	}
+.login-form {
+	margin-top: 40rpx;
+}
 
-	.t-login {
-		width: 600rpx;
-		margin: 0 auto;
-		font-size: 28rpx;
-		padding-top: 40rpx;
-	}
+.t-login {
+	width: 600rpx;
+	margin: 0 auto;
+	font-size: 28rpx;
+	padding-top: 40rpx;
+}
 
-	.onLogin {
-		margin-top: 50rpx;
-		font-size: 28rpx;
-		background: #2796f2;
-		color: #fff;
-		height: 90rpx;
-		line-height: 90rpx;
-		border-radius: 50rpx;
-		font-weight: bold;
-	}
+.onLogin {
+	margin-top: 50rpx;
+	font-size: 28rpx;
+	background: #2796f2;
+	color: #fff;
+	height: 90rpx;
+	line-height: 90rpx;
+	border-radius: 50rpx;
+	font-weight: bold;
+}
 
-	.t-login .t-c {
-		position: absolute;
-		right: 22rpx;
-		top: 22rpx;
-		background: #5677fc;
-		color: #fff;
-		font-size: 24rpx;
-		border-radius: 50rpx;
-		height: 50rpx;
-		line-height: 50rpx;
-		padding: 0 25rpx;
-	}
+.t-login .t-c {
+	position: absolute;
+	right: 22rpx;
+	top: 22rpx;
+	background: #5677fc;
+	color: #fff;
+	font-size: 24rpx;
+	border-radius: 50rpx;
+	height: 50rpx;
+	line-height: 50rpx;
+	padding: 0 25rpx;
+}
 
-	.t-login .t-d {
-		text-align: center;
-		color: #999;
-		margin: 80rpx 0;
-	}
+.t-login .t-d {
+	text-align: center;
+	color: #999;
+	margin: 80rpx 0;
+}
 
-	.t-login .t-e {
-		text-align: center;
-		width: 250rpx;
-		margin: 80rpx auto 0;
-	}
+.t-login .t-e {
+	text-align: center;
+	width: 250rpx;
+	margin: 80rpx auto 0;
+}
 
-	.t-login .t-g {
-		float: left;
-		width: 50%;
-	}
+.t-login .t-g {
+	float: left;
+	width: 50%;
+}
 
-	.t-login .t-e image {
-		width: 50rpx;
-		height: 50rpx;
-	}
+.t-login .t-e image {
+	width: 50rpx;
+	height: 50rpx;
+}
 
-	.t-login .t-f {
-		text-align: center;
-		margin: 150rpx 0 0 0;
-		color: #666;
-	}
+.t-login .t-f {
+	text-align: center;
+	margin: 150rpx 0 0 0;
+	color: #666;
+}
 
-	.t-login .t-f text {
-		margin-left: 20rpx;
-		color: #aaaaaa;
-		font-size: 27rpx;
-	}
+.t-login .t-f text {
+	margin-left: 20rpx;
+	color: #aaaaaa;
+	font-size: 27rpx;
+}
 
-	.t-login .uni-input-placeholder {
-		color: #aeaeae;
-	}
+.t-login .uni-input-placeholder {
+	color: #aeaeae;
+}
 
-	.cl {
-		zoom: 1;
-	}
+.cl {
+	zoom: 1;
+}
 
-	.cl:after {
-		clear: both;
-		display: block;
-		visibility: hidden;
-		height: 0;
-		content: "\20";
-	}
+.cl:after {
+	clear: both;
+	display: block;
+	visibility: hidden;
+	height: 0;
+	content: "\20";
+}
 </style>

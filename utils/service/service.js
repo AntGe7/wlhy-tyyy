@@ -18,20 +18,19 @@ const httpInterceptor = {
     }
   }
 };
-
-uni.addInterceptor("request", httpInterceptor);
-
+uni.addInterceptor('request', httpInterceptor)  // 添加请求拦截器
 export const http = (options) => {
-  console.log(options, 'options');
+  console.log('执行http', options);  // 打印最终使用的请求参数
   return new Promise((resolve, reject) => {
     uni.request({
       ...options,
-      success(res) {
-        if (res.data.statusCode === 200) {  
-          console.log("code200", res.data);
-          resolve(res.data); 
-        } else if (res.data.statusCode === 401) {  
-          console.log("code401", res.data);
+      complete(res) {
+        console.log('HTTP 状态码', res.statusCode);  // 打印状态码
+        switch(res.statusCode) {
+          case 200:  // OK
+            resolve(res.data);
+            break;
+          case 401:  // Unauthorized
           const userStore = useUserStore();
           userStore.clearToken();
           uni.showToast({
@@ -39,22 +38,26 @@ export const http = (options) => {
             icon: 'none'
           });
           uni.navigateTo({ url: '/pages/login/index' });
-          reject(new Error("Unauthorized"));  
-          console.log("code402+", res.data);
-          uni.showToast({
-            icon: 'none',
-            title: res.data.message || 'Request error'
-          });
-          reject(new Error(res.data.message || 'Request error'));
+            reject('Unauthorized access');
+            break;
+          case 404:  // Not Found
+            console.log('404 Not Found', res);
+            uni.showToast({
+              title: res.data.message || "404 Not Found",
+              icon: 'none'
+            });
+            reject('Resource not found');
+            break;
+          default:
+            if (res.statusCode >= 400) {
+              // console.log('错误处理', res);
+              reject({ error: 'HTTP error', statusCode: res.statusCode, data: res.data });
+            } else {
+              console.log('其他响应', res);
+              resolve(res.data);
+            }
+            break;
         }
-      },
-      fail(err) {
-        console.log("Network error", err);
-        uni.showToast({
-          icon: 'none',
-          title: '网络错误，换个网络试试'
-        });
-        reject(new Error('Network error'));  
       }
     });
   });

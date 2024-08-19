@@ -6,7 +6,7 @@ import { createSSRApp } from 'vue'
 export function createApp() {
 	
   const app = createSSRApp(App)
-  // app.config.globalProperties.$http = http; 
+  app.config.globalProperties.$http = http; 
   app.use(uvUI);
   app.use(pinia);
   return {
